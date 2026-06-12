@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📝 note記事リライター</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+      background: #f5f5f0;
+      color: #333;
+      min-height: 100vh;
+    }
+    .header {
+      background: #41c9b0;
+      color: white;
+      padding: 16px 20px;
+      text-align: center;
+    }
+    .header h1 { font-size: 20px; font-weight: 700; }
+    .header p { font-size: 12px; opacity: 0.85; margin-top: 4px; }
+
+    .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #41c9b0;
+      margin-bottom: 12px;
+    }
+
+    textarea {
+      width: 100%;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+      line-height: 1.7;
+    }
+    textarea:focus { border-color: #41c9b0; }
+
+    .btn {
+      width: 100%;
+      background: #41c9b0;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #36b09a; }
+    .btn:disabled { background: #ccc; cursor: not-allowed; }
+
+    .loading {
+      text-align: center;
+      padding: 30px;
+      color: #888;
+      font-size: 14px;
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #e0e0e0;
+      border-top-color: #41c9b0;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .result-section { display: none; }
+
+    .titles-list { list-style: none; }
+    .titles-list li {
+      background: #f9f9f9;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .titles-list li:hover { border-color: #41c9b0; background: #f0faf8; }
+    .titles-list li .num {
+      font-size: 11px;
+      color: #41c9b0;
+      font-weight: 700;
+      min-width: 24px;
+    }
+    .copy-btn {
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      color: #666;
+      transition: all 0.2s;
+      white-space: nowrap;
+      margin-left: 8px;
+    }
+    .copy-btn:hover { border-color: #41c9b0; color: #41c9b0; }
+    .copy-btn.copied { border-color: #41c9b0; color: #41c9b0; background: #f0faf8; }
+
+    .prompt-box {
+      background: #f9f9f9;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #555;
+      position: relative;
+    }
+    .prompt-box .copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+
+    .error {
+      background: #fff0f0;
+      border: 1px solid #ffcccc;
+      border-radius: 8px;
+      padding: 14px;
+      color: #e53935;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .char-count {
+      text-align: right;
+      font-size: 11px;
+      color: #aaa;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📝 note記事リライター</h1>
+  <p>by amadopapa — 文体・個性を残してリライト</p>
+</div>
+
+<div class="container">
+
+  <!-- 入力 -->
+  <div class="card">
+    <div class="card-title">✏️ 元の記事を貼り付けてください</div>
+    <textarea id="inputText" rows="10" placeholder="noteに書いた原稿をここに貼り付けてください..."></textarea>
+    <div class="char-count"><span id="charCount">0</span> 文字</div>
+  </div>
+
+  <button class="btn" id="rewriteBtn" onclick="rewrite()">🔄 リライトする</button>
+
+  <!-- ローディング -->
+  <div id="loading" style="display:none;" class="card">
+    <div class="loading">
+      <div class="spinner"></div>
+      AIがリライト中です...少しお待ちください
+    </div>
+  </div>
+
+  <!-- エラー -->
+  <div id="error" class="error" style="display:none;"></div>
+
+  <!-- 結果 -->
+  <div id="result" class="result-section">
+
+    <!-- リライト済み本文 -->
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+        📄 リライト済み本文
+        <button class="copy-btn" onclick="copyText('rewriteText', this)">コピー</button>
+      </div>
+      <textarea id="rewriteText" rows="12" readonly></textarea>
+    </div>
+
+    <!-- タイトル案 -->
+    <div class="card">
+      <div class="card-title">💡 タイトル案（5つ）</div>
+      <ul class="titles-list" id="titlesList"></ul>
+    </div>
+
+    <!-- 画像プロンプト（日本語） -->
+    <div class="card">
+      <div class="card-title">🎨 Gemini向け画像プロンプト（日本語）</div>
+      <div class="prompt-box" id="imagePromptJa">
+        <button class="copy-btn" onclick="copyText('imagePromptJa', this)">コピー</button>
+        <span id="imagePromptJaText"></span>
+      </div>
+    </div>
+
+    <!-- 画像プロンプト（英語） -->
+    <div class="card">
+      <div class="card-title">🎨 Gemini向け画像プロンプト（English）</div>
+      <div class="prompt-box" id="imagePromptEn">
+        <button class="copy-btn" onclick="copyText('imagePromptEn', this)">コピー</button>
+        <span id="imagePromptEnText"></span>
+      </div>
+    </div>
+
+    <button class="btn" style="background:#666;margin-top:4px;" onclick="reset()">🔁 もう一度リライトする</button>
+  </div>
+
+</div>
+
+<script>
+  // 文字数カウント
+  document.getElementById('inputText').addEventListener('input', function() {
+    document.getElementById('charCount').textContent = this.value.length;
+  });
+
+  async function rewrite() {
+    const article = document.getElementById('inputText').value.trim();
+    if (!article) { alert('記事を入力してください'); return; }
+
+    document.getElementById('rewriteBtn').disabled = true;
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('error').style.display = 'none';
+    document.getElementById('result').style.display = 'none';
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ article })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'エラーが発生しました');
+
+      // 結果を表示
+      document.getElementById('rewriteText').value = data.rewrite || '';
+      document.getElementById('imagePromptJaText').textContent = data.imagePrompt || '';
+      document.getElementById('imagePromptEnText').textContent = data.imagePromptEn || '';
+
+      // タイトル案
+      const list = document.getElementById('titlesList');
+      list.innerHTML = '';
+      (data.titles || []).forEach((t, i) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span><span class="num">${i+1}.</span> ${t}</span>
+          <button class="copy-btn" onclick="copyTitle(this, '${t.replace(/'/g, "\\'")}')">コピー</button>`;
+        list.appendChild(li);
+      });
+
+      document.getElementById('result').style.display = 'block';
+    } catch (e) {
+      document.getElementById('error').textContent = 'エラー: ' + e.message;
+      document.getElementById('error').style.display = 'block';
+    } finally {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('rewriteBtn').disabled = false;
+    }
+  }
+
+  function copyText(id, btn) {
+    const el = document.getElementById(id);
+    const text = el.tagName === 'TEXTAREA' ? el.value : el.querySelector('span').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✓ コピー済';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'コピー'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  function copyTitle(btn, text) {
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✓ コピー済';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'コピー'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  function reset() {
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('inputText').value = '';
+    document.getElementById('charCount').textContent = '0';
+    window.scrollTo(0, 0);
+  }
+</script>
+
+</body>
+</html>
