@@ -259,8 +259,15 @@
       list.innerHTML = '';
       (data.titles || []).forEach((t, i) => {
         const li = document.createElement('li');
-        li.innerHTML = `<span><span class="num">${i+1}.</span> ${t}</span>
-          <button class="copy-btn" onclick="copyTitle(this, '${t.replace(/'/g, "\\'")}')">コピー</button>`;
+        const span = document.createElement('span');
+        span.innerHTML = `<span class="num">${i+1}.</span> ${t}`;
+        const btn = document.createElement('button');
+        btn.className = 'copy-btn';
+        btn.textContent = 'コピー';
+        btn.dataset.title = t;
+        btn.addEventListener('click', function() { copyTitle(this, this.dataset.title); });
+        li.appendChild(span);
+        li.appendChild(btn);
         list.appendChild(li);
       });
 
